@@ -1,0 +1,18 @@
+{
+  "constelaciones": {
+    "Orión": {
+      "estrellas": {
+        "Rigel": { "x": 200, "y": 150, "hipergigante": true },
+        "Betelgeuse": { "x": 400, "y": 300, "hipergigante": true },
+        "Bellatrix": { "x": 250, "y": 350 },
+        "Saiph": { "x": 500, "y": 200 }
+      },
+      "conexiones": [
+        ["Rigel", "Betelgeuse"],
+        ["Betelgeuse", "Bellatrix"],
+        ["Rigel", "Saiph"],
+        ["Bellatrix", "Saiph"]
+      ]
+    }
+  }
+}
