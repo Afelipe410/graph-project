@@ -18,7 +18,7 @@ class GraphWidget(QWidget):
         pen = QPen(Qt.GlobalColor.white, 2)
         painter.setPen(pen)
 
-        for star1, star2 in self.graph_manager.connections:
+        for star1, star2, distance in self.graph_manager.connections:
             if star1 in self.graph_manager.stars and star2 in self.graph_manager.stars:
                 x1, y1 = self.graph_manager.stars[star1]['pos']
                 x2, y2 = self.graph_manager.stars[star2]['pos']
@@ -35,14 +35,23 @@ class GraphWidget(QWidget):
         # --- Dibujar estrellas ---
         for star_name, star_data in self.graph_manager.stars.items():
             x, y = star_data['pos']
-            
-            # Color distinto si es hipergigante
-            if star_data.get('hipergigante', False):
-                brush = QBrush(QColor(255, 150, 50))  # naranja
+
+            num_constelaciones = len(star_data.get('constelaciones', []))
+
+            if num_constelaciones > 1:
+                # Requisito: Resaltar de color rojo si pertenece a varias constelaciones
+                brush = QBrush(QColor(255, 0, 0))  # Rojo
+            elif num_constelaciones == 1:
+                # Requisito: Cada constelación un color diferente
+                constelacion_nombre = list(star_data['constelaciones'])[0]
+                color = self.graph_manager.constellation_colors.get(constelacion_nombre, QColor(100, 150, 255))
+                brush = QBrush(color)
             else:
-                brush = QBrush(QColor(100, 150, 255))  # azul
+                # Caso por defecto (estrella sin constelación)
+                brush = QBrush(QColor(200, 200, 200))  # Gris
 
             painter.setBrush(brush)
+            # Borde especial para hipergigantes para no perder esa información visual
             painter.setPen(QPen(Qt.GlobalColor.black, 1))
             painter.drawEllipse(x - self.node_radius, y - self.node_radius,
                                 2 * self.node_radius, 2 * self.node_radius)
