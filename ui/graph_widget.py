@@ -1,18 +1,24 @@
 # ui/graph_widget.py
 from PyQt6.QtWidgets import QWidget
-from PyQt6.QtGui import QPainter, QPen, QBrush, QColor
+from PyQt6.QtGui import QPainter, QPen, QBrush, QColor, QPixmap
 from PyQt6.QtCore import Qt
 
 class GraphWidget(QWidget):
     def __init__(self, graph_manager, parent=None):
         super().__init__(parent)
         self.graph_manager = graph_manager
-        self.setMinimumSize(800, 600)
+        self.setMinimumSize(900, 700)
         self.node_radius = 15
+        self.highlighted_route = []
+        self.donkey_pos = None
+        self.donkey_pixmap = QPixmap("assets/donkey.png").scaled(40, 40, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
 
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        # Fondo oscuro
+        painter.fillRect(self.rect(), QColor(10, 20, 30))
 
         # --- Dibujar conexiones ---
         pen = QPen(Qt.GlobalColor.white, 2)
@@ -31,6 +37,16 @@ class GraphWidget(QWidget):
 
                 painter.setPen(pen)
                 painter.drawLine(x1, y1, x2, y2)
+
+        # --- Resaltar la ruta calculada ---
+        if len(self.highlighted_route) > 1:
+            pen = QPen(QColor(255, 255, 0), 4, Qt.PenStyle.SolidLine) # Amarillo brillante
+            painter.setPen(pen)
+            for i in range(len(self.highlighted_route) - 1):
+                p1 = self.graph_manager.get_star_pos(self.highlighted_route[i])
+                p2 = self.graph_manager.get_star_pos(self.highlighted_route[i+1])
+                if p1 and p2:
+                    painter.drawLine(p1[0], p1[1], p2[0], p2[1])
 
         # --- Dibujar estrellas ---
         for star_name, star_data in self.graph_manager.stars.items():
@@ -59,3 +75,15 @@ class GraphWidget(QWidget):
             # Nombre de la estrella
             painter.setPen(Qt.GlobalColor.white)
             painter.drawText(x + self.node_radius, y, star_name)
+
+        # --- Dibujar al burro ---
+        if self.donkey_pos:
+            painter.drawPixmap(int(self.donkey_pos[0] - self.donkey_pixmap.width() / 2),
+                               int(self.donkey_pos[1] - self.donkey_pixmap.height() / 2),
+                               self.donkey_pixmap)
+
+    def set_highlighted_route(self, route):
+        self.highlighted_route = route
+        if route:
+            self.donkey_pos = self.graph_manager.get_star_pos(route[0])
+        self.update()

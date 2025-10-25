@@ -1,10 +1,13 @@
 import sys
-from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QFileDialog, QHBoxLayout, QGroupBox, QFormLayout, QLineEdit, QComboBox, QLabel, QSpinBox
+from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QFileDialog, QHBoxLayout, QGroupBox, QFormLayout, QLineEdit, QComboBox, QLabel, QSpinBox, QMessageBox
+from PyQt6.QtCore import QTimer, QUrl
+from PyQt6.QtMultimedia import QSoundEffect
 from core.graph_manager import GraphManager
 from ui.graph_widget import GraphWidget
 from core.graph_manager import GraphManager
 from core.donkey import Donkey
 from core.route_calculator import RouteCalculator
+import math
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -14,6 +17,14 @@ class MainWindow(QMainWindow):
 
         self.graph_manager = GraphManager()
         self.route_calculator = RouteCalculator(self.graph_manager)
+        
+        # --- Animación ---
+        self.animation_timer = QTimer(self)
+        self.animation_timer.timeout.connect(self.animate_step)
+        self.animation_path = []
+        self.animation_step_index = 0
+        self.donkey_death_sound = QSoundEffect()
+        self.donkey_death_sound.setSource(QUrl.fromLocalFile("assets/donkey_death.wav"))
 
         # --- Layout Principal ---
         main_widget = QWidget()
@@ -58,7 +69,9 @@ class MainWindow(QMainWindow):
         sim_layout = QVBoxLayout()
 
         self.calc_die_hard_button = QPushButton("Calcular Ruta 'Die Hard'")
+        self.calc_die_hard_button.clicked.connect(self.calculate_die_hard_route)
         self.calc_economical_button = QPushButton("Calcular Ruta Económica")
+        self.calc_economical_button.clicked.connect(self.calculate_economical_route)
 
         sim_layout.addWidget(self.calc_die_hard_button)
         sim_layout.addWidget(self.calc_economical_button)
@@ -109,6 +122,91 @@ class MainWindow(QMainWindow):
             self.energy_input.setValue(donkey_data.get('energia', 100))
             self.grass_input.setValue(donkey_data.get('pasto', 100))
 
+    def calculate_die_hard_route(self):
+        """Crea un burro con los datos de la UI y calcula la ruta 'Die Hard'."""
+        start_star = self.start_star_combo.currentText()
+        if not start_star:
+            QMessageBox.warning(self, "Advertencia", "Por favor, carga un archivo de constelaciones y selecciona una estrella de inicio.")
+            return
+
+        # Crear instancia del burro desde la UI
+        donkey = Donkey(
+            salud=self.health_combo.currentText(),
+            edad=self.age_input.value(),
+            energia=self.energy_input.value(),
+            pasto=self.grass_input.value()
+        )
+
+        # Calcular la ruta
+        route, stars_visited_count = self.route_calculator.calculate_max_stars_route(start_star, donkey)
+
+        # Mostrar resultados (puedes mejorar esto, por ejemplo, en un diálogo)
+        self.graph_widget.set_highlighted_route(route)
+        QMessageBox.information(self, "Ruta 'Die Hard' Calculada", 
+                                f"Se visitaron {stars_visited_count} estrellas.\n"
+                                f"Ruta: {' -> '.join(route)}")
+
+    def calculate_economical_route(self):
+        """Crea un burro y calcula la ruta económica, luego inicia la animación."""
+        start_star = self.start_star_combo.currentText()
+        if not start_star:
+            QMessageBox.warning(self, "Advertencia", "Por favor, carga un archivo y selecciona una estrella de inicio.")
+            return
+
+        donkey = Donkey(
+            salud=self.health_combo.currentText(),
+            edad=self.age_input.value(),
+            energia=self.energy_input.value(),
+            pasto=self.grass_input.value()
+        )
+
+        route, stars_visited_count = self.route_calculator.calculate_economical_route(start_star, donkey)
+
+        self.graph_widget.set_highlighted_route(route)
+        QMessageBox.information(self, "Ruta Económica Calculada",
+                                f"Se visitarán {stars_visited_count} estrellas.\n"
+                                f"Ruta: {' -> '.join(route)}\n\n"
+                                "Iniciando simulación del recorrido...")
+        
+        self.start_animation(route)
+
+    def start_animation(self, route):
+        if len(route) < 2:
+            return
+
+        self.animation_path = route
+        self.animation_step_index = 0
+        self.animation_timer.start(30) # Actualizar cada 30 ms para una animación fluida
+
+    def animate_step(self):
+        # Índices de la estrella de origen y destino para el segmento actual
+        start_node_idx = self.animation_step_index
+        end_node_idx = self.animation_step_index + 1
+
+        if end_node_idx >= len(self.animation_path):
+            self.animation_timer.stop()
+            # Si la ruta se completó, el burro no murió
+            QMessageBox.information(self, "Simulación Terminada", "¡El burro completó la ruta con éxito!")
+            return
+
+        start_pos = self.graph_manager.get_star_pos(self.animation_path[start_node_idx])
+        end_pos = self.graph_manager.get_star_pos(self.animation_path[end_node_idx])
+        current_pos = self.graph_widget.donkey_pos
+
+        dx = end_pos[0] - current_pos[0]
+        dy = end_pos[1] - current_pos[1]
+        distance = math.sqrt(dx*dx + dy*dy)
+
+        # Mover el burro un pequeño paso hacia el destino
+        if distance > 2: # Si no hemos llegado aún
+            speed = 2 # Píxeles por paso
+            self.graph_widget.donkey_pos = (current_pos[0] + (dx / distance) * speed,
+                                            current_pos[1] + (dy / distance) * speed)
+        else: # Llegamos a la estrella
+            self.graph_widget.donkey_pos = end_pos
+            self.animation_step_index += 1 # Preparar para el siguiente segmento
+
+        self.graph_widget.update()
 
 def main():
     app = QApplication(sys.argv)

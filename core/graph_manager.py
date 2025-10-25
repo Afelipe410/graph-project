@@ -89,3 +89,16 @@ class GraphManager:
             if (conn[0], conn[1]) == search_tuple:
                 return conn[2]
         return float('inf') # Retorna infinito si no hay conexión directa
+
+    def get_neighbors(self, star_label):
+        """Obtiene una lista de vecinos y distancias para una estrella dada."""
+        neighbors = []
+        for s1, s2, distance in self.connections:
+            if s1 == star_label:
+                neighbors.append((s2, distance))
+            elif s2 == star_label:
+                neighbors.append((s1, distance))
+        return neighbors
+
+    def get_star_pos(self, star_label):
+        return self.stars.get(star_label, {}).get('pos')
