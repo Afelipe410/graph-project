@@ -25,6 +25,7 @@ class MainWindow(QMainWindow):
         self.animation_step_index = 0
         self.donkey_death_sound = QSoundEffect()
         self.donkey_death_sound.setSource(QUrl.fromLocalFile("assets/donkey_death.wav"))
+        self.current_donkey = None
 
         # --- Layout Principal ---
         main_widget = QWidget()
@@ -137,6 +138,9 @@ class MainWindow(QMainWindow):
             pasto=self.grass_input.value()
         )
 
+        # Guardar burro actual para la animación/simulación
+        self.current_donkey = donkey
+
         # Calcular la ruta
         route, stars_visited_count = self.route_calculator.calculate_max_stars_route(start_star, donkey)
 
@@ -160,6 +164,9 @@ class MainWindow(QMainWindow):
             pasto=self.grass_input.value()
         )
 
+        # Guardar burro actual para la animación/simulación
+        self.current_donkey = donkey
+
         route, stars_visited_count = self.route_calculator.calculate_economical_route(start_star, donkey)
 
         self.graph_widget.set_highlighted_route(route)
@@ -176,6 +183,9 @@ class MainWindow(QMainWindow):
 
         self.animation_path = route
         self.animation_step_index = 0
+        # Asegurar que la posición inicial del burro esté establecida en el widget
+        if route:
+            self.graph_widget.donkey_pos = self.graph_manager.get_star_pos(route[0])
         self.animation_timer.start(30) # Actualizar cada 30 ms para una animación fluida
 
     def animate_step(self):
@@ -205,6 +215,35 @@ class MainWindow(QMainWindow):
         else: # Llegamos a la estrella
             self.graph_widget.donkey_pos = end_pos
             self.animation_step_index += 1 # Preparar para el siguiente segmento
+
+            # Simulación: aplicar coste del viaje y acciones en la estrella
+            if self.current_donkey:
+                # Usar la distancia real entre estrellas (valor del JSON)
+                travel_distance = self.graph_manager.get_distance(self.animation_path[start_node_idx], self.animation_path[end_node_idx])
+                # Si no hay distancia almacenada, estimar por píxeles (fallback)
+                if travel_distance == float('inf'):
+                    travel_distance = math.sqrt((start_pos[0]-end_pos[0])**2 + (start_pos[1]-end_pos[1])**2) / 4.0
+
+                # Burro viaja (consume vida y energía)
+                self.current_donkey.viajar(travel_distance)
+
+                # Procesar la estrella destino (comer/investigar)
+                star_info = self.graph_manager.stars.get(self.animation_path[end_node_idx], {})
+                estrella_data = {
+                    'tiempo_para_comer': star_info.get('tiempo_para_comer', 1),
+                    'costo_energia_invest': star_info.get('costo_energia_invest', 1)
+                }
+                self.current_donkey.procesar_estrella(estrella_data)
+
+                # Si el burro murió o se quedó sin energía, detener y reproducir sonido
+                if getattr(self.current_donkey, 'vida_restante', 1) <= 0 or getattr(self.current_donkey, 'energia', 1) <= 0:
+                    self.animation_timer.stop()
+                    try:
+                        self.donkey_death_sound.play()
+                    except Exception:
+                        pass
+                    QMessageBox.critical(self, "El burro ha muerto", "El burro no pudo completar la ruta y ha muerto en el viaje.")
+                    return
 
         self.graph_widget.update()
 

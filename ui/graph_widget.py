@@ -2,6 +2,8 @@
 from PyQt6.QtWidgets import QWidget
 from PyQt6.QtGui import QPainter, QPen, QBrush, QColor, QPixmap
 from PyQt6.QtCore import Qt
+import os
+from pathlib import Path
 
 class GraphWidget(QWidget):
     def __init__(self, graph_manager, parent=None):
@@ -11,7 +13,31 @@ class GraphWidget(QWidget):
         self.node_radius = 15
         self.highlighted_route = []
         self.donkey_pos = None
-        self.donkey_pixmap = QPixmap("assets/donkey.png").scaled(40, 40, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+
+        # Intentar cargar sprite del burro; buscar en la carpeta assets del proyecto
+        assets_candidate = Path(__file__).resolve().parents[1] / "assets" / "donkey.png"
+        pm = QPixmap(str(assets_candidate))
+        # fallback: intentar desde el working directory (ejecución desde VSCode)
+        if pm.isNull():
+            wd_candidate = Path(os.getcwd()) / "assets" / "donkey.png"
+            pm = QPixmap(str(wd_candidate))
+            if not pm.isNull():
+                print(f"donkey.png cargado desde working dir: {wd_candidate}")
+        else:
+            print(f"donkey.png cargado desde assets: {assets_candidate}")
+        if pm.isNull():
+            # Pixmap de reserva (círculo amarillo)
+            pm = QPixmap(40, 40)
+            pm.fill(Qt.GlobalColor.transparent)
+            painter = QPainter(pm)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            painter.setBrush(QBrush(QColor(220, 200, 50)))
+            painter.setPen(QPen(Qt.GlobalColor.black))
+            painter.drawEllipse(0, 0, 40, 40)
+            painter.end()
+        else:
+            pm = pm.scaled(40, 40, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        self.donkey_pixmap = pm
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -78,9 +104,16 @@ class GraphWidget(QWidget):
 
         # --- Dibujar al burro ---
         if self.donkey_pos:
-            painter.drawPixmap(int(self.donkey_pos[0] - self.donkey_pixmap.width() / 2),
-                               int(self.donkey_pos[1] - self.donkey_pixmap.height() / 2),
-                               self.donkey_pixmap)
+            # Asegurar que donkey_pixmap no sea nulo antes de dibujar
+            if not self.donkey_pixmap.isNull():
+                painter.drawPixmap(int(self.donkey_pos[0] - self.donkey_pixmap.width() / 2),
+                                   int(self.donkey_pos[1] - self.donkey_pixmap.height() / 2),
+                                   self.donkey_pixmap)
+            else:
+                # Fallback: dibujar un círculo si el sprite no está disponible
+                painter.setBrush(QBrush(QColor(220, 200, 50)))
+                painter.setPen(QPen(Qt.GlobalColor.black))
+                painter.drawEllipse(int(self.donkey_pos[0] - 12), int(self.donkey_pos[1] - 12), 24, 24)
 
     def set_highlighted_route(self, route):
         self.highlighted_route = route
