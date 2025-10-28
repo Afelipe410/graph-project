@@ -5,81 +5,42 @@
       "starts": [
         {
           "id": 1,
-          "label": "Alpha1",
+          "label": "Burro-A",
           "linkedTo": [
-            {
-              "starId": 2,
-              "distance": 120
-            },
-            {
-              "starId": 4,
-              "distance": 87
-            },
-            {
-              "starId": 5,
-              "distance": 101
-            }
+            { "starId": 2, "distance": 25 },
+            { "starId": 3, "distance": 40 }
           ],
-          "radius": 0.4,
-          "timeToEat": 3,
-          "amountOfEnergy": 1,
-          "coordenates": {
-            "x": 25,
-            "y": 34
-          },
+          "radius": 0.6,
+          "timeToEat": 2,
+          "amountOfEnergy": 2,
+          "coordenates": { "x": 20, "y": 20 },
           "hypergiant": false
         },
         {
           "id": 2,
-          "label": "Beta23",
+          "label": "Burro-B",
           "linkedTo": [
-            {
-              "starId": 1,
-              "distance": 120
-            },
-            {
-              "starId": 7,
-              "distance": 45
-            },
-            {
-              "starId": 3,
-              "distance": 17
-            }
+            { "starId": 1, "distance": 25 },
+            { "starId": 3, "distance": 30 }
           ],
-          "radius": 0.2,
+          "radius": 0.5,
           "timeToEat": 2,
-          "amountOfEnergy": 2,
-          "coordenates": {
-            "x": 37,
-            "y": 15
-          },
+          "amountOfEnergy": 1,
+          "coordenates": { "x": 45, "y": 18 },
           "hypergiant": false
         },
         {
           "id": 3,
-          "label": "Alpha53",
+          "label": "Burro-C",
           "linkedTo": [
-            {
-              "starId": 5,
-              "distance": 86
-            },
-            {
-              "starId": 2,
-              "distance": 17
-            },
-            {
-              "starId": 9,
-              "distance": 15
-            }
+            { "starId": 1, "distance": 40 },
+            { "starId": 2, "distance": 30 }
           ],
-          "radius": 1,
-          "timeToEat": 1,
+          "radius": 0.8,
+          "timeToEat": 3,
           "amountOfEnergy": 3,
-          "coordenates": {
-            "x": 75,
-            "y": 43
-          },
-          "hypergiant": true
+          "coordenates": { "x": 35, "y": 45 },
+          "hypergiant": false
         }
       ]
     },
@@ -87,52 +48,227 @@
       "name": "Constelación de la Araña",
       "starts": [
         {
-          "id": 12,
-          "label": "Beta178",
+          "id": 4,
+          "label": "Araña-A",
           "linkedTo": [
-            {
-              "starId": 14,
-              "distance": 120
-            },
-            {
-              "starId": 17,
-              "distance": 87
-            },
-            {
-              "starId": 11,
-              "distance": 101
-            }
+            { "starId": 5, "distance": 22 },
+            { "starId": 6, "distance": 50 }
           ],
-          "radius": 0.6,
-          "timeToEat": 3,
+          "radius": 0.5,
+          "timeToEat": 2,
           "amountOfEnergy": 1,
-          "coordenates": {
-            "x": 123,
-            "y": 167
-          },
+          "coordenates": { "x": 20, "y": 160 },
           "hypergiant": false
         },
         {
-          "id": 13,
-          "label": "Gama23",
+          "id": 5,
+          "label": "Araña-B",
           "linkedTo": [
-            {
-              "starId": 15,
-              "distance": 120
-            },
-            {
-              "starId": 17,
-              "distance": 45
-            }
+            { "starId": 4, "distance": 22 },
+            { "starId": 6, "distance": 28 }
           ],
-          "radius": 0.8,
+          "radius": 0.4,
+          "timeToEat": 1,
+          "amountOfEnergy": 1,
+          "coordenates": { "x": 45, "y": 150 },
+          "hypergiant": false
+        },
+        {
+          "id": 6,
+          "label": "Araña-C",
+          "linkedTo": [
+            { "starId": 4, "distance": 50 },
+            { "starId": 5, "distance": 28 }
+          ],
+          "radius": 0.7,
           "timeToEat": 3,
+          "amountOfEnergy": 2,
+          "coordenates": { "x": 30, "y": 180 },
+          "hypergiant": false
+        },
+        {
+          "id": 7,
+          "label": "Araña-D",
+          "linkedTo": [
+            { "starId": 5, "distance": 35 }
+          ],
+          "radius": 0.3,
+          "timeToEat": 1,
+          "amountOfEnergy": 1,
+          "coordenates": { "x": 60, "y": 170 },
+          "hypergiant": false
+        }
+      ]
+    },
+    {
+      "name": "Constelación del Zorro",
+      "starts": [
+        {
+          "id": 8,
+          "label": "Zorro-A",
+          "linkedTo": [
+            { "starId": 9, "distance": 28 },
+            { "starId": 10, "distance": 42 }
+          ],
+          "radius": 0.5,
+          "timeToEat": 2,
+          "amountOfEnergy": 1,
+          "coordenates": { "x": 160, "y": 25 },
+          "hypergiant": false
+        },
+        {
+          "id": 9,
+          "label": "Zorro-B",
+          "linkedTo": [
+            { "starId": 8, "distance": 28 },
+            { "starId": 10, "distance": 20 }
+          ],
+          "radius": 0.6,
+          "timeToEat": 2,
+          "amountOfEnergy": 2,
+          "coordenates": { "x": 140, "y": 40 },
+          "hypergiant": false
+        },
+        {
+          "id": 10,
+          "label": "Zorro-C",
+          "linkedTo": [
+            { "starId": 8, "distance": 42 },
+            { "starId": 9, "distance": 20 },
+            { "starId": 11, "distance": 60 }
+          ],
+          "radius": 0.9,
+          "timeToEat": 3,
+          "amountOfEnergy": 3,
+          "coordenates": { "x": 170, "y": 55 },
+          "hypergiant": false
+        },
+        {
+          "id": 11,
+          "label": "Zorro-D",
+          "linkedTo": [
+            { "starId": 10, "distance": 60 }
+          ],
+          "radius": 0.4,
+          "timeToEat": 1,
+          "amountOfEnergy": 1,
+          "coordenates": { "x": 185, "y": 30 },
+          "hypergiant": false
+        },
+        {
+          "id": 12,
+          "label": "Zorro-E",
+          "linkedTo": [
+            { "starId": 9, "distance": 55 }
+          ],
+          "radius": 0.3,
+          "timeToEat": 1,
+          "amountOfEnergy": 1,
+          "coordenates": { "x": 150, "y": 75 },
+          "hypergiant": false
+        }
+      ]
+    },
+    {
+      "name": "Constelación del Sol",
+      "starts": [
+        {
+          "id": 13,
+          "label": "Sol-A",
+          "linkedTo": [
+            { "starId": 14, "distance": 30 },
+            { "starId": 15, "distance": 50 }
+          ],
+          "radius": 1.2,
+          "timeToEat": 4,
           "amountOfEnergy": 5,
-          "coordenates": {
-            "x": 189,
-            "y": 146
-          },
+          "coordenates": { "x": 160, "y": 160 },
           "hypergiant": true
+        },
+        {
+          "id": 14,
+          "label": "Sol-B",
+          "linkedTo": [
+            { "starId": 13, "distance": 30 },
+            { "starId": 15, "distance": 22 }
+          ],
+          "radius": 0.6,
+          "timeToEat": 2,
+          "amountOfEnergy": 2,
+          "coordenates": { "x": 180, "y": 145 },
+          "hypergiant": false
+        },
+        {
+          "id": 15,
+          "label": "Sol-C",
+          "linkedTo": [
+            { "starId": 13, "distance": 50 },
+            { "starId": 14, "distance": 22 }
+          ],
+          "radius": 0.7,
+          "timeToEat": 3,
+          "amountOfEnergy": 2,
+          "coordenates": { "x": 140, "y": 185 },
+          "hypergiant": false
+        }
+      ]
+    },
+    {
+      "name": "Constelación de Orión",
+      "starts": [
+        {
+          "id": 16,
+          "label": "Orion-A",
+          "linkedTo": [
+            { "starId": 17, "distance": 18 },
+            { "starId": 18, "distance": 40 }
+          ],
+          "radius": 0.5,
+          "timeToEat": 2,
+          "amountOfEnergy": 1,
+          "coordenates": { "x": 100, "y": 100 },
+          "hypergiant": false
+        },
+        {
+          "id": 17,
+          "label": "Orion-B",
+          "linkedTo": [
+            { "starId": 16, "distance": 18 },
+            { "starId": 18, "distance": 30 },
+            { "starId": 19, "distance": 45 }
+          ],
+          "radius": 0.6,
+          "timeToEat": 2,
+          "amountOfEnergy": 2,
+          "coordenates": { "x": 120, "y": 95 },
+          "hypergiant": false
+        },
+        {
+          "id": 18,
+          "label": "Orion-C",
+          "linkedTo": [
+            { "starId": 16, "distance": 40 },
+            { "starId": 17, "distance": 30 },
+            { "starId": 19, "distance": 20 }
+          ],
+          "radius": 0.9,
+          "timeToEat": 3,
+          "amountOfEnergy": 3,
+          "coordenates": { "x": 95, "y": 120 },
+          "hypergiant": false
+        },
+        {
+          "id": 19,
+          "label": "Orion-D",
+          "linkedTo": [
+            { "starId": 17, "distance": 45 },
+            { "starId": 18, "distance": 20 }
+          ],
+          "radius": 0.4,
+          "timeToEat": 1,
+          "amountOfEnergy": 1,
+          "coordenates": { "x": 115, "y": 125 },
+          "hypergiant": false
         }
       ]
     }

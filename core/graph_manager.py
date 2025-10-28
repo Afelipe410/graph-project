@@ -92,23 +92,84 @@ class GraphManager:
         scale_y = (target_h - 2 * padding) / range_y
         scale = min(scale_x, scale_y)
 
+        # Factor deseado para separar visualmente las estrellas (gráfico solamente).
+        desired_separation_factor = 1.6
+
         self.um_scale = scale
         self.um_padding = padding
 
         # Construir estrellas y conexiones
-        pos_map = {}
+        pos_map = {}  # key -> list of labels (para detectar overlaps)
+
+        # Centro del área util (en píxeles) para aplicar el "estiramiento" radial
+        useful_w = target_w - 2 * padding
+        useful_h = target_h - 2 * padding
+        center_px = padding + useful_w / 2.0
+        center_py = padding + useful_h / 2.0
+
+        # Primero calcular las posiciones base (sin factor) para evaluar límites
+        base_positions = []
+        for _, s, raw_x, raw_y in stars_raw:
+            if not s.get("label"):
+                base_positions.append(None)
+                continue
+            norm_x = (raw_x - min_x) / (range_x if range_x != 0 else 1)
+            norm_y = (raw_y - min_y) / (range_y if range_y != 0 else 1)
+            base_px = padding + norm_x * useful_w
+            base_py = padding + norm_y * useful_h
+            base_positions.append((s.get("label"), base_px, base_py))
+
+        # Determinar el factor máximo admisible para que ninguna estrella salga del área útil
+        allowed_max = float('inf')
+        for entry in base_positions:
+            if entry is None:
+                continue
+            _, base_px, base_py = entry
+            # para X: si base > center, max_f = (right - center)/(base - center)
+            #         si base < center, max_f = (center - left)/(center - base)
+            if base_px != center_px:
+                if base_px > center_px:
+                    max_fx = (padding + useful_w - center_px) / (base_px - center_px)
+                else:
+                    max_fx = (center_px - padding) / (center_px - base_px)
+                allowed_max = min(allowed_max, max_fx)
+            if base_py != center_py:
+                if base_py > center_py:
+                    max_fy = (padding + useful_h - center_py) / (base_py - center_py)
+                else:
+                    max_fy = (center_py - padding) / (center_py - base_py)
+                allowed_max = min(allowed_max, max_fy)
+
+        # Si por alguna razón allowed_max es muy pequeño o infinito, usar al menos 1.0
+        if not math.isfinite(allowed_max) or allowed_max < 1.0:
+            allowed_max = 1.0
+
+        # Elegir factor final (no exceder el deseado ni allowed_max)
+        separation_factor = min(desired_separation_factor, allowed_max)
+
+        # Construir posiciones finales aplicando separation_factor y clamp de seguridad
         for const_name, s, raw_x, raw_y in stars_raw:
             label = s.get("label")
             if not label:
                 continue
-            # convertir cm -> píxeles
-            px = padding + (raw_x - min_x) * scale
-            py = padding + (raw_y - min_y) * scale
+            # posición base en píxeles dentro del área útil (sin separación extra)
+            norm_x = (raw_x - min_x) / (range_x if range_x != 0 else 1)
+            norm_y = (raw_y - min_y) / (range_y if range_y != 0 else 1)
+            base_px = padding + norm_x * useful_w
+            base_py = padding + norm_y * useful_h
+
+            # aplicar separación radial respecto al centro (solo visual)
+            px = center_px + (base_px - center_px) * separation_factor
+            py = center_py + (base_py - center_py) * separation_factor
+
+            # clamp final para asegurar que queden dentro del área visible
+            px = max(padding, min(padding + useful_w, px))
+            py = max(padding, min(padding + useful_h, py))
 
             self.stars[label] = {
                 "id": s.get("id"),
                 "pos": (px, py),
-                "um_pos": (raw_x, raw_y),  # ahora representa cm
+                "um_pos": (raw_x, raw_y),
                 "radius": s.get("radius", 0.5),
                 "tiempo_para_comer": s.get("timeToEat", 1),
                 "costo_energia_invest": s.get("amountOfEnergy", 1),
