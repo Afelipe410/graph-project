@@ -1,6 +1,6 @@
 import sys
 from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QFileDialog, QHBoxLayout, QGroupBox, QFormLayout, QLineEdit, QComboBox, QLabel, QSpinBox, QMessageBox
-from PyQt6.QtCore import QTimer, QUrl
+from PyQt6.QtCore import QTimer, QUrl, Qt
 from PyQt6.QtMultimedia import QSoundEffect
 from core.graph_manager import GraphManager
 from ui.graph_widget import GraphWidget
@@ -56,6 +56,22 @@ class MainWindow(QMainWindow):
         self.grass_input = QSpinBox()
         self.grass_input.setRange(0, 1000)
 
+        # crear combo para seleccionar constelación
+        self.constellation_combo = QComboBox()
+        # conectar explícitamente pasando el índice para evitar ambigüedades de sobrecarga
+        self.constellation_combo.currentIndexChanged.connect(lambda idx: self.on_constellation_selected(idx))
+        # asegurar que sean interactuables y visibles
+        self.constellation_combo.setEnabled(True)
+        self.constellation_combo.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.constellation_combo.setMinimumWidth(200)
+
+        self.start_star_combo.setEnabled(True)
+        self.start_star_combo.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.start_star_combo.setMinimumWidth(200)
+        # conectar cambio en estrella para depuración y acción (centrar burro) — pasar índice explícito
+        self.start_star_combo.currentIndexChanged.connect(lambda idx: self.on_start_star_changed(idx))
+
+        donkey_layout.addRow("Constelacion:", self.constellation_combo)
         donkey_layout.addRow("Estrella de Inicio:", self.start_star_combo)
         donkey_layout.addRow("Salud:", self.health_combo)
         donkey_layout.addRow("Edad:", self.age_input)
@@ -109,8 +125,20 @@ class MainWindow(QMainWindow):
 
     def update_ui_after_load(self):
         """Actualiza los componentes de la UI que dependen de los datos del grafo."""
-        self.start_star_combo.clear()
-        self.start_star_combo.addItems(sorted(self.graph_manager.stars.keys()))
+        # poblar combo de constelaciones (manteniendo el orden cargado)
+        consts = list(self.graph_manager.constellation_colors.keys())
+        self.constellation_combo.clear()
+        if consts:
+            self.constellation_combo.addItems(consts)
+            # seleccionar la primera y poblar estrellas según la constelación
+            self.constellation_combo.setCurrentIndex(0)
+            # seleccionar la primera y poblar estrellas según la constelación
+            self.constellation_combo.setCurrentIndex(0)
+            print(f"[DEBUG] update_ui_after_load: consts={consts}")
+            # llamar explícito con índice 0 para forzar la actualización del combo de estrellas
+            self.on_constellation_selected(0)
+        else:
+            self.start_star_combo.clear()
         
         # Pre-llenar la UI con los datos del burro del JSON
         donkey_data = self.graph_manager.initial_donkey_data
@@ -246,6 +274,48 @@ class MainWindow(QMainWindow):
                     return
 
         self.graph_widget.update()
+
+    def on_constellation_selected(self, index=None):
+        # obtener nombre de la constelación desde el índice (si se pasó) o desde el texto actual
+        if isinstance(index, int):
+            name = self.constellation_combo.itemText(index)
+        else:
+            name = self.constellation_combo.currentText()
+
+        # depuración mínima: imprime en consola lo seleccionado
+        print(f"[DEBUG] Constelación seleccionada: {repr(name)}")
+
+        # limpiar y rellenar combo de estrellas
+        self.start_star_combo.clear()
+        if not name:
+            return
+
+        # coincidir exacto quitando posibles espacios
+        name = str(name).strip()
+        stars = [label for label, data in self.graph_manager.stars.items() if str(data.get('constellation', '')).strip() == name]
+        stars.sort()
+        print(f"[DEBUG] Estrellas encontradas para '{name}': {stars}")
+        if stars:
+            self.start_star_combo.addItems(stars)
+            self.start_star_combo.setCurrentIndex(0)
+            # si quieres centrar burro en la primer estrella seleccionada
+            first = self.start_star_combo.currentText()
+            if first:
+                pos = self.graph_manager.get_star_pos(first)
+                self.graph_widget.donkey_pos = pos
+                self.graph_widget.update()
+
+    def on_start_star_changed(self, index=None):
+        """Slot al cambiar la estrella de inicio: centra el burro y muestra debug."""
+        if isinstance(index, int):
+            name = self.start_star_combo.itemText(index)
+        else:
+            name = self.start_star_combo.currentText()
+        print(f"[DEBUG] Estrella de inicio seleccionada: {repr(name)}")
+        if name:
+            pos = self.graph_manager.get_star_pos(name)
+            self.graph_widget.donkey_pos = pos
+            self.graph_widget.update()
 
 def main():
     app = QApplication(sys.argv)
