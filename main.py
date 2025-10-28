@@ -69,7 +69,7 @@ class MainWindow(QMainWindow):
         sim_group = QGroupBox("Calcular Rutas")
         sim_layout = QVBoxLayout()
 
-        self.calc_die_hard_button = QPushButton("Calcular Ruta 'Die Hard'")
+        self.calc_die_hard_button = QPushButton("Calcular Ruta de Resistencia")
         self.calc_die_hard_button.clicked.connect(self.calculate_die_hard_route)
         self.calc_economical_button = QPushButton("Calcular Ruta Económica")
         self.calc_economical_button.clicked.connect(self.calculate_economical_route)
@@ -146,7 +146,7 @@ class MainWindow(QMainWindow):
 
         # Mostrar resultados (puedes mejorar esto, por ejemplo, en un diálogo)
         self.graph_widget.set_highlighted_route(route)
-        QMessageBox.information(self, "Ruta 'Die Hard' Calculada", 
+        QMessageBox.information(self, "Ruta de Resistencia Calculada", 
                                 f"Se visitaron {stars_visited_count} estrellas.\n"
                                 f"Ruta: {' -> '.join(route)}")
 
