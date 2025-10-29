@@ -43,6 +43,9 @@ class GraphManager:
         # Mapear id -> label para resolver conexiones
         id_to_label = {}
         for const in data.get("constellations", []):
+            const_name = const.get("name", "SinNombre")
+            if const_name not in self.constellation_colors:
+                self.constellation_colors[const_name] = self._generate_random_color()
             for s in const.get("starts", []):
                 sid = s.get("id")
                 label = s.get("label")

@@ -95,6 +95,23 @@ class MainWindow(QMainWindow):
         sim_group.setLayout(sim_layout)
         left_layout.addWidget(sim_group)
 
+        # --- Estado del Burro en Simulación ---
+        status_group = QGroupBox("Estado Actual del Burro")
+        status_layout = QFormLayout()
+
+        self.status_health_label = QLabel("N/A")
+        self.status_energy_label = QLabel("N/A")
+        self.status_grass_label = QLabel("N/A")
+        self.status_life_label = QLabel("N/A")
+
+        status_layout.addRow("Salud:", self.status_health_label)
+        status_layout.addRow("Energía:", self.status_energy_label)
+        status_layout.addRow("Pasto Restante:", self.status_grass_label)
+        status_layout.addRow("Vida Restante (años luz):", self.status_life_label)
+
+        status_group.setLayout(status_layout)
+        left_layout.addWidget(status_group)
+
         left_layout.addStretch() # Empuja todo hacia arriba
 
         # --- Widget del Grafo (Panel Derecho) ---
@@ -214,6 +231,7 @@ class MainWindow(QMainWindow):
         # Asegurar que la posición inicial del burro esté establecida en el widget
         if route:
             self.graph_widget.donkey_pos = self.graph_manager.get_star_pos(route[0])
+        self.update_donkey_status_ui() # Actualizar UI con estado inicial
         self.animation_timer.start(30) # Actualizar cada 30 ms para una animación fluida
 
     def animate_step(self):
@@ -224,6 +242,7 @@ class MainWindow(QMainWindow):
         if end_node_idx >= len(self.animation_path):
             self.animation_timer.stop()
             # Si la ruta se completó, el burro no murió
+            self.update_donkey_status_ui() # Muestra el estado final
             QMessageBox.information(self, "Simulación Terminada", "¡El burro completó la ruta con éxito!")
             return
 
@@ -271,9 +290,20 @@ class MainWindow(QMainWindow):
                     except Exception:
                         pass
                     QMessageBox.critical(self, "El burro ha muerto", "El burro no pudo completar la ruta y ha muerto en el viaje.")
-                    return
-
+                
+                # Actualizar la UI con el nuevo estado del burro
+                self.update_donkey_status_ui()
+                
         self.graph_widget.update()
+
+    def update_donkey_status_ui(self):
+        """Actualiza los QLabels con el estado actual del burro."""
+        if self.current_donkey:
+            self.status_health_label.setText(f"{self.current_donkey.get_salud_str()}")
+            self.status_energy_label.setText(f"{self.current_donkey.energia:.1f} %")
+            self.status_grass_label.setText(f"{self.current_donkey.pasto:.1f} kg")
+            self.status_life_label.setText(f"{self.current_donkey.vida_restante:.1f}")
+
 
     def on_constellation_selected(self, index=None):
         # obtener nombre de la constelación desde el índice (si se pasó) o desde el texto actual
