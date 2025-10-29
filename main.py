@@ -24,7 +24,6 @@ class MainWindow(QMainWindow):
         self.animation_path = []
         self.animation_step_index = 0
         self.donkey_death_sound = QSoundEffect()
-        self.donkey_death_sound.setSource(QUrl.fromLocalFile("assets/donkey_death.wav"))
         self.current_donkey = None
 
         # --- Layout Principal ---
@@ -78,6 +77,11 @@ class MainWindow(QMainWindow):
         donkey_layout.addRow("BurroEnergía (%):", self.energy_input)
         donkey_layout.addRow("Pasto en Bodega (kg):", self.grass_input)
 
+        # Botón para crear/actualizar el burro
+        self.create_donkey_button = QPushButton("Crear/Actualizar Burro")
+        self.create_donkey_button.clicked.connect(self.create_or_update_donkey)
+        donkey_layout.addRow(self.create_donkey_button)
+
         donkey_group.setLayout(donkey_layout)
         left_layout.addWidget(donkey_group)
 
@@ -121,6 +125,9 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.graph_widget)
         main_widget.setLayout(main_layout)
         self.setCentralWidget(main_widget)
+        
+        # Cargar sonido después de que la UI esté lista
+        self.donkey_death_sound.setSource(QUrl.fromLocalFile("assets/donkey_death.wav"))
 
     def load_constellations(self):
         """Abre un diálogo para seleccionar y cargar un archivo JSON."""
@@ -169,25 +176,16 @@ class MainWindow(QMainWindow):
             self.grass_input.setValue(donkey_data.get('pasto', 100))
 
     def calculate_die_hard_route(self):
-        """Crea un burro con los datos de la UI y calcula la ruta 'Die Hard'."""
+        """Calcula la ruta 'Die Hard' usando el burro actual."""
         start_star = self.start_star_combo.currentText()
         if not start_star:
             QMessageBox.warning(self, "Advertencia", "Por favor, carga un archivo de constelaciones y selecciona una estrella de inicio.")
             return
-
-        # Crear instancia del burro desde la UI
-        donkey = Donkey(
-            salud=self.health_combo.currentText(),
-            edad=self.age_input.value(),
-            energia=self.energy_input.value(),
-            pasto=self.grass_input.value()
-        )
-
-        # Guardar burro actual para la animación/simulación
-        self.current_donkey = donkey
-
+        if not self.current_donkey:
+            QMessageBox.warning(self, "Advertencia", "Primero debes crear un burro usando el botón 'Crear/Actualizar Burro'.")
+            return
         # Calcular la ruta
-        route, stars_visited_count = self.route_calculator.calculate_max_stars_route(start_star, donkey)
+        route, stars_visited_count = self.route_calculator.calculate_max_stars_route(start_star, self.current_donkey)
 
         # Mostrar resultados (puedes mejorar esto, por ejemplo, en un diálogo)
         self.graph_widget.set_highlighted_route(route)
@@ -196,23 +194,16 @@ class MainWindow(QMainWindow):
                                 f"Ruta: {' -> '.join(route)}")
 
     def calculate_economical_route(self):
-        """Crea un burro y calcula la ruta económica, luego inicia la animación."""
+        """Calcula la ruta económica con el burro actual y luego inicia la animación."""
         start_star = self.start_star_combo.currentText()
         if not start_star:
             QMessageBox.warning(self, "Advertencia", "Por favor, carga un archivo y selecciona una estrella de inicio.")
             return
+        if not self.current_donkey:
+            QMessageBox.warning(self, "Advertencia", "Primero debes crear un burro usando el botón 'Crear/Actualizar Burro'.")
+            return
 
-        donkey = Donkey(
-            salud=self.health_combo.currentText(),
-            edad=self.age_input.value(),
-            energia=self.energy_input.value(),
-            pasto=self.grass_input.value()
-        )
-
-        # Guardar burro actual para la animación/simulación
-        self.current_donkey = donkey
-
-        route, stars_visited_count = self.route_calculator.calculate_economical_route(start_star, donkey)
+        route, stars_visited_count = self.route_calculator.calculate_economical_route(start_star, self.current_donkey)
 
         self.graph_widget.set_highlighted_route(route)
         QMessageBox.information(self, "Ruta Económica Calculada",
@@ -221,6 +212,21 @@ class MainWindow(QMainWindow):
                                 "Iniciando simulación del recorrido...")
         
         self.start_animation(route)
+
+    def create_or_update_donkey(self):
+        """Crea o reemplaza la instancia del burro con los valores de la UI."""
+        self.current_donkey = Donkey(
+            salud=self.health_combo.currentText(),
+            edad=self.age_input.value(),
+            energia=self.energy_input.value(),
+            pasto=self.grass_input.value()
+        )
+        self.update_donkey_status_ui()
+        QMessageBox.information(self, "Burro Listo", 
+                                f"Se ha creado un burro con:\n"
+                                f"- Vida inicial: {self.current_donkey.vida_restante:.1f} años luz\n"
+                                f"- Energía: {self.current_donkey.energia}%\n"
+                                "¡Ya puedes calcular una ruta!")
 
     def start_animation(self, route):
         if len(route) < 2:
@@ -284,11 +290,10 @@ class MainWindow(QMainWindow):
 
                 # Si el burro murió o se quedó sin energía, detener y reproducir sonido
                 if getattr(self.current_donkey, 'vida_restante', 1) <= 0 or getattr(self.current_donkey, 'energia', 1) <= 0:
+                    self.donkey_death_sound.play()
+                    # Forzar el procesamiento de eventos para que el sonido se reproduzca ANTES de que el QMessageBox bloquee el hilo.
+                    QApplication.processEvents()
                     self.animation_timer.stop()
-                    try:
-                        self.donkey_death_sound.play()
-                    except Exception:
-                        pass
                     QMessageBox.critical(self, "El burro ha muerto", "El burro no pudo completar la ruta y ha muerto en el viaje.")
                 
                 # Actualizar la UI con el nuevo estado del burro
