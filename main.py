@@ -28,6 +28,7 @@ class MainWindow(QMainWindow):
         self.animation_path = []
         self.animation_step_index = 0
         self.current_donkey = None
+        self.current_route_report_data = None # Para guardar datos del reporte
 
         # --- Layout Principal ---
         main_widget = QWidget()
@@ -121,10 +122,10 @@ class MainWindow(QMainWindow):
         status_group = QGroupBox("Estado Actual del Burro")
         status_layout = QFormLayout()
 
-        self.status_health_label = QLabel("N/A")
-        self.status_energy_label = QLabel("N/A")
-        self.status_grass_label = QLabel("N/A")
-        self.status_life_label = QLabel("N/A")
+        self.status_health_label = QLabel("-")
+        self.status_energy_label = QLabel("-")
+        self.status_grass_label = QLabel("-")
+        self.status_life_label = QLabel("-")
 
         status_layout.addRow("Salud:", self.status_health_label)
         status_layout.addRow("Energía:", self.status_energy_label)
@@ -202,7 +203,14 @@ class MainWindow(QMainWindow):
         if not start_star or not self.current_donkey:
             QMessageBox.warning(self, "Advertencia", "Selecciona constelación, estrella y crea un burro.")
             return
-        route, stars_visited = self.route_calculator.calculate_economical_route(start_star, self.current_donkey)
+        
+        route, stars_visited, food_log, research_log = self.route_calculator.calculate_economical_route(start_star, self.current_donkey)
+        
+        # Guardar los datos para el reporte que se mostrará al final del viaje
+        self.current_route_report_data = {
+            "route": route, "food_log": food_log, "research_log": research_log
+        }
+
         self.graph_widget.set_highlighted_route(route)
         QMessageBox.information(self, "Ruta Económica", f"Visitadas {stars_visited} estrellas.\nIniciando simulación...")
         self.start_animation(route)
@@ -234,6 +242,10 @@ class MainWindow(QMainWindow):
         if end_idx >= len(self.animation_path):
             self.animation_timer.stop()
             QMessageBox.information(self, "Simulación", "¡El burro completó la ruta con éxito!")
+            # Mostrar el reporte al finalizar con éxito
+            if self.current_route_report_data:
+                self.show_route_report(**self.current_route_report_data)
+                self.current_route_report_data = None # Limpiar para la próxima
             return
 
         start_pos = self.graph_manager.get_star_pos(self.animation_path[start_idx])
@@ -262,7 +274,7 @@ class MainWindow(QMainWindow):
                     'tiempo_para_comer': star_info.get('tiempo_para_comer', 1),
                     'costo_energia_invest': star_info.get('costo_energia_invest', 1)
                 }
-                self.current_donkey.procesar_estrella(estrella_data)
+                self.current_donkey.procesar_estrella(self.animation_path[end_idx], estrella_data) # Pasar el label de la estrella
 
                 # 💀 Muerte del burro
                 if self.current_donkey.vida_restante <= 0 or self.current_donkey.energia <= 0:
@@ -273,6 +285,10 @@ class MainWindow(QMainWindow):
                         self, "El burro ha muerto",
                         "💀 El burro no pudo completar la ruta y ha muerto en el viaje."
                     ))
+                    # Mostrar el reporte final aunque el burro haya muerto
+                    if self.current_route_report_data:
+                        self.show_route_report(**self.current_route_report_data)
+                        self.current_route_report_data = None # Limpiar
 
                 self.update_donkey_status_ui()
 
@@ -350,6 +366,46 @@ class MainWindow(QMainWindow):
             self.graph_widget.update() # Redibujar para mostrar el camino desbloqueado
         else:
             QMessageBox.warning(self, "Error al Desbloquear", message)
+
+    def show_route_report(self, route, food_log, research_log):
+        """
+        Genera y muestra un reporte detallado de la ruta calculada.
+        Incluye estrellas visitadas, constelaciones, consumo de pasto y tiempo de investigación.
+        """
+        report_text = "--- Reporte de Ruta Económica ---\n\n"
+        report_text += f"Ruta visitada ({len(route)} estrellas): {' -> '.join(route)}\n\n"
+        report_text += "Detalle por Estrella:\n"
+
+        # Consolidar logs para fácil acceso, sumando si una estrella aparece múltiples veces
+        food_by_star = {}
+        for entry in food_log:
+            star = entry['star']
+            amount = entry['amount_kg']
+            food_by_star[star] = food_by_star.get(star, 0) + amount
+
+        research_by_star = {}
+        for entry in research_log:
+            star = entry['star']
+            units = entry['units_investigated']
+            research_by_star[star] = research_by_star.get(star, 0) + units
+
+        for star_label in route:
+            star_data = self.graph_manager.stars.get(star_label)
+            if not star_data:
+                report_text += f"\nEstrella: {star_label} (Datos no encontrados)\n"
+                continue
+
+            constellation = star_data.get('constellation', 'Desconocida')
+            food_consumed = food_by_star.get(star_label, 0)
+            research_units = research_by_star.get(star_label, 0)
+
+            report_text += f"\nEstrella: {star_label}\n"
+            report_text += f"  Constelación: {constellation}\n"
+            report_text += f"  Consumo de Pasto: {food_consumed:.2f} kg\n"
+            # Asumiendo que si se realizó investigación (research_units > 0), se invirtieron 10 unidades de tiempo.
+            report_text += f"  Tiempo de Investigación: {10 if research_units > 0 else 0} unidades de tiempo\n"
+
+        QMessageBox.information(self, "Reporte de Ruta", report_text)
 
 def main():
     app = QApplication(sys.argv)

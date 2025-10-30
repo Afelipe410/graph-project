@@ -60,7 +60,7 @@ class RouteCalculator:
 
         # Procesar la estrella inicial
         initial_star_data = self.graph_manager.stars[current_star_label]
-        sim_donkey.procesar_estrella(initial_star_data)
+        sim_donkey.procesar_estrella(current_star_label, initial_star_data) # Pasar el label de la estrella
 
         print(f"Iniciando cálculo 'Económico' desde '{start_star_label}'. Vida: {sim_donkey.vida_restante:.1f}, Energía: {sim_donkey.energia:.1f}%")
 
@@ -81,7 +81,7 @@ class RouteCalculator:
                 if temp_donkey.vida_restante > 0 and temp_donkey.energia > 0:
                     # Simular acciones en la estrella de destino
                     neighbor_star_data = self.graph_manager.stars[neighbor_label]
-                    temp_donkey.procesar_estrella(neighbor_star_data)
+                    temp_donkey.procesar_estrella(neighbor_label, neighbor_star_data) # Pasar el label de la estrella
 
                     # Calcular una "puntuación" para esta opción.
                     # Queremos maximizar vida y energía, y minimizar distancia.
@@ -104,4 +104,4 @@ class RouteCalculator:
             sim_donkey = final_donkey_state
             print(f"-> Viajando a '{current_star_label}' (Dist: {dist}). Estado: Vida {sim_donkey.vida_restante:.1f}, Energía {sim_donkey.energia:.1f}%")
 
-        return route, len(route)
+        return route, len(route), sim_donkey.food_consumption_log, sim_donkey.research_log # Devolver los logs

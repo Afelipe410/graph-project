@@ -8,7 +8,9 @@ class Donkey:
         self.energia = energia
         self.pasto = pasto
         self.vida_restante = self.calcular_vida_inicial()
-
+        # Logs para el reporte de acciones del burro
+        self.food_consumption_log = []
+        self.research_log = []
     def calcular_vida_inicial(self):
         # Lógica de ejemplo para calcular la vida inicial.
         # La vida es una combinación de edad y salud.
@@ -20,7 +22,7 @@ class Donkey:
     def get_salud_str(self):
         return self.salud_str_map.get(self.salud, "desconocido")
 
-    def procesar_estrella(self, estrella_data):
+    def procesar_estrella(self, star_label, estrella_data):
         """
         Simula las acciones del burro en una estrella: comer e investigar.
         """
