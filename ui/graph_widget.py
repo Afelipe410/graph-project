@@ -13,7 +13,7 @@ class GraphWidget(QWidget):
         # Tamaño base de nodos y escaladores para hacerlos más grandes
         self.node_radius = 24        # radio base para estrellas (aumentado)
         self.star_scale = 1.4        # factor adicional por visibilidad
-        self.donkey_pix_size = 64    # tamaño del sprite del burro en píxeles
+        self.donkey_pix_size = 70   # tamaño del sprite del burro en píxeles
         self.highlighted_route = []
         self.donkey_pos = None
 
@@ -39,7 +39,12 @@ class GraphWidget(QWidget):
             painter.drawEllipse(0, 0, self.donkey_pix_size, self.donkey_pix_size)
             painter.end()
         else:
-            pm = pm.scaled(self.donkey_pix_size, self.donkey_pix_size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            # Escalar el pixmap a su tamaño final usando un filtro de alta calidad
+            # para que la imagen se vea suave y no pixelada.
+            pm = pm.scaled(self.donkey_pix_size, 
+                           self.donkey_pix_size, 
+                           Qt.AspectRatioMode.KeepAspectRatio, 
+                           Qt.TransformationMode.SmoothTransformation)
         self.donkey_pixmap = pm
 
     def paintEvent(self, event):
