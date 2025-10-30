@@ -18,19 +18,13 @@ class RouteCalculator:
         print(f"Iniciando cálculo 'Die Hard' desde '{start_star}'. Vida inicial del burro: {sim_donkey.vida_restante}")
 
         while True:
-            neighbors = []
+            # Usar get_neighbors para obtener solo vecinos no bloqueados
+            neighbors_with_distances = self.graph_manager.get_neighbors(current_star_label)
+            
             # Encontrar vecinos no visitados desde la estrella actual
-            for star1, star2, distance in self.graph_manager.connections:
-                neighbor = None
-                if star1 == current_star_label and star2 not in visited_stars:
-                    neighbor = star2
-                elif star2 == current_star_label and star1 not in visited_stars:
-                    neighbor = star1
-                
-                if neighbor:
-                    neighbors.append((neighbor, distance))
+            neighbors = [(n, d) for n, d in neighbors_with_distances if n not in visited_stars]
 
-            # Ordenar vecinos por distancia (el más cercano primero)
+            # Ordenar vecinos por distancia (el más cercano primero) para el algoritmo voraz
             neighbors.sort(key=lambda x: x[1])
 
             next_star_found = False
@@ -71,6 +65,7 @@ class RouteCalculator:
         print(f"Iniciando cálculo 'Económico' desde '{start_star_label}'. Vida: {sim_donkey.vida_restante:.1f}, Energía: {sim_donkey.energia:.1f}%")
 
         while sim_donkey.vida_restante > 0 and sim_donkey.energia > 0:
+            # Usar get_neighbors para obtener solo vecinos no bloqueados
             neighbors = self.graph_manager.get_neighbors(current_star_label)
             possible_next_steps = []
 

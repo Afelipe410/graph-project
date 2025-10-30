@@ -213,23 +213,77 @@ class GraphManager:
             "deathAge": data.get("deathAge")
         }
 
+    def _get_connection_key(self, star1_label, star2_label):
+        """Helper para obtener una clave consistente para una conexión (tupla ordenada)."""
+        if star1_label not in self.stars or star2_label not in self.stars:
+            return None
+        return tuple(sorted((star1_label, star2_label)))
+
+    def is_connection_blocked(self, star1_label, star2_label):
+        """Verifica si una conexión entre dos estrellas está bloqueada."""
+        key = self._get_connection_key(star1_label, star2_label)
+        if key:
+            return key in self.blocked_connections
+        return False
+
+    def block_connection(self, star1_label, star2_label):
+        """Bloquea una conexión entre dos estrellas."""
+        key = self._get_connection_key(star1_label, star2_label)
+        if not key:
+            return False, "Una o ambas estrellas no existen."
+
+        # Verificar si la conexión realmente existe en el grafo
+        connection_exists = False
+        for s1, s2, _ in self.connections:
+            if tuple(sorted((s1, s2))) == key:
+                connection_exists = True
+                break
+
+        if not connection_exists:
+            return False, f"No se encontró una conexión directa entre {star1_label} y {star2_label}."
+
+        if key in self.blocked_connections:
+            return False, f"La conexión entre {star1_label} y {star2_label} ya está bloqueada."
+
+        self.blocked_connections.add(key)
+        return True, f"Conexión entre {star1_label} y {star2_label} bloqueada exitosamente."
+
+    def unblock_connection(self, star1_label, star2_label):
+        """Desbloquea una conexión entre dos estrellas."""
+        key = self._get_connection_key(star1_label, star2_label)
+        if not key:
+            return False, "Una o ambas estrellas no existen."
+
+        if key not in self.blocked_connections:
+            return False, f"La conexión entre {star1_label} y {star2_label} no está bloqueada."
+
+        self.blocked_connections.remove(key)
+        return True, f"Conexión entre {star1_label} y {star2_label} desbloqueada exitosamente."
+
     def get_distance(self, star1_label, star2_label):
         """Devuelve la distancia entre dos estrellas si existe la conexión; inf si no existe."""
         if star1_label == star2_label:
             return 0.0
         a, b = tuple(sorted((star1_label, star2_label)))
         for s1, s2, dist in self.connections:
-            if s1 == a and s2 == b:
-                try:
-                    return float(dist)
-                except Exception:
-                    return float('inf')
+            if s1 == a and s2 == b and not self.is_connection_blocked(s1, s2): # Check if not blocked
+                return float(dist)
         return float('inf')
 
-    def get_neighbors(self, star_label):
-        """Devuelve lista de tuplas (neighbor_label, distance) para la estrella dada."""
+    def get_neighbors(self, star_label, include_blocked=False):
+        """
+        Devuelve lista de tuplas (neighbor_label, distance) para la estrella dada.
+        Si include_blocked es False, las conexiones bloqueadas no se incluirán.
+        """
         neighbors = []
         for s1, s2, dist in self.connections:
+            # Determinar la clave de conexión para verificar el estado de bloqueo
+            conn_key = tuple(sorted((s1, s2)))
+
+            # Si no se incluyen las bloqueadas y esta conexión está bloqueada, saltarla
+            if not include_blocked and conn_key in self.blocked_connections:
+                continue
+
             if s1 == star_label:
                 neighbors.append((s2, float(dist)))
             elif s2 == star_label:
@@ -242,3 +296,7 @@ class GraphManager:
         if not data:
             return (0, 0)
         return data.get("pos", (0, 0))
+
+    def get_all_star_labels(self):
+        """Devuelve una lista ordenada de todas las etiquetas de estrellas."""
+        return sorted(list(self.stars.keys()))

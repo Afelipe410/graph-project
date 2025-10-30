@@ -97,6 +97,26 @@ class MainWindow(QMainWindow):
         sim_group.setLayout(sim_layout)
         left_layout.addWidget(sim_group)
 
+        # --- Bloqueo de Caminos ---
+        path_blocking_group = QGroupBox("Bloqueo de Caminos")
+        path_blocking_layout = QFormLayout()
+
+        self.block_star1_combo = QComboBox()
+        self.block_star2_combo = QComboBox()
+        self.block_path_button = QPushButton("Bloquear Camino")
+        self.unblock_path_button = QPushButton("Desbloquear Camino")
+
+        self.block_path_button.clicked.connect(self.block_selected_path)
+        self.unblock_path_button.clicked.connect(self.unblock_selected_path)
+
+        path_blocking_layout.addRow("Estrella 1:", self.block_star1_combo)
+        path_blocking_layout.addRow("Estrella 2:", self.block_star2_combo)
+        path_blocking_layout.addRow(self.block_path_button)
+        path_blocking_layout.addRow(self.unblock_path_button)
+
+        path_blocking_group.setLayout(path_blocking_layout)
+        left_layout.addWidget(path_blocking_group)
+
         # --- Estado del Burro ---
         status_group = QGroupBox("Estado Actual del Burro")
         status_layout = QFormLayout()
@@ -166,6 +186,7 @@ class MainWindow(QMainWindow):
             self.age_input.setValue(donkey_data.get('edad', 10))
             self.energy_input.setValue(donkey_data.get('energia', 100))
             self.grass_input.setValue(donkey_data.get('pasto', 100))
+        self.update_path_blocking_ui()
 
     def calculate_die_hard_route(self):
         start_star = self.start_star_combo.currentText()
@@ -286,6 +307,49 @@ class MainWindow(QMainWindow):
             self.graph_widget.donkey_pos = pos
             self.graph_widget.update()
 
+    def update_path_blocking_ui(self):
+        """Actualiza los QComboBox para el bloqueo de caminos con todas las estrellas."""
+        all_stars = self.graph_manager.get_all_star_labels()
+        self.block_star1_combo.clear()
+        self.block_star2_combo.clear()
+        if all_stars:
+            self.block_star1_combo.addItems(all_stars)
+            self.block_star2_combo.addItems(all_stars)
+
+    def block_selected_path(self):
+        """Bloquea el camino seleccionado entre dos estrellas."""
+        star1 = self.block_star1_combo.currentText()
+        star2 = self.block_star2_combo.currentText()
+
+        if not star1 or not star2:
+            QMessageBox.warning(self, "Advertencia", "Selecciona dos estrellas para bloquear el camino.")
+            return
+        if star1 == star2:
+            QMessageBox.warning(self, "Advertencia", "No puedes bloquear un camino de una estrella a sí misma.")
+            return
+
+        success, message = self.graph_manager.block_connection(star1, star2)
+        if success:
+            QMessageBox.information(self, "Camino Bloqueado", message)
+            self.graph_widget.update() # Redibujar para mostrar el camino bloqueado
+        else:
+            QMessageBox.warning(self, "Error al Bloquear", message)
+
+    def unblock_selected_path(self):
+        """Desbloquea el camino seleccionado entre dos estrellas."""
+        star1 = self.block_star1_combo.currentText()
+        star2 = self.block_star2_combo.currentText()
+
+        if not star1 or not star2:
+            QMessageBox.warning(self, "Advertencia", "Selecciona dos estrellas para desbloquear el camino.")
+            return
+
+        success, message = self.graph_manager.unblock_connection(star1, star2)
+        if success:
+            QMessageBox.information(self, "Camino Desbloqueado", message)
+            self.graph_widget.update() # Redibujar para mostrar el camino desbloqueado
+        else:
+            QMessageBox.warning(self, "Error al Desbloquear", message)
 
 def main():
     app = QApplication(sys.argv)
