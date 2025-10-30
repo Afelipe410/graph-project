@@ -1,4 +1,5 @@
 import copy
+import heapq
 
 class RouteCalculator:
     def __init__(self, graph_manager):
@@ -48,60 +49,129 @@ class RouteCalculator:
 
     def calculate_economical_route(self, start_star_label, donkey):
         """
-        Calcula una ruta que intenta maximizar las estrellas visitadas con un gasto eficiente.
-        Es una heurística que en cada paso elige el "mejor" vecino.
-        El "mejor" vecino es aquel que, tras el viaje y las acciones en la estrella,
-        deja al burro en el mejor estado posible (más vida y energía).
+        Ahora usa Dijkstra para encontrar caminos de coste mínimo desde la posición actual.
+        Estrategia:
+        - Repetidamente calcula distancias mínimas desde la estrella actual (Dijkstra).
+        - Selecciona la estrella no visitada con menor coste total (ruta más corta).
+        - Reconstruye el camino a esa estrella y simula el viaje paso a paso,
+          aplicando sim_donkey.viajar(...) y sim_donkey.procesar_estrella(...).
+        - Para mantener compatibilidad devuelve (route, len(route), food_log, research_log).
         """
         sim_donkey = copy.deepcopy(donkey)
-        current_star_label = start_star_label
-        visited_stars = {current_star_label}
-        route = [current_star_label]
+        current = start_star_label
+        visited = {current}
+        route = [current]
 
-        # Procesar la estrella inicial
-        initial_star_data = self.graph_manager.stars[current_star_label]
-        sim_donkey.procesar_estrella(current_star_label, initial_star_data) # Pasar el label de la estrella
+        # Si la estrella de inicio no existe, devolver vacío compatible
+        if current not in self.graph_manager.stars:
+            return [], 0, sim_donkey.food_consumption_log, sim_donkey.research_log
 
-        print(f"Iniciando cálculo 'Económico' desde '{start_star_label}'. Vida: {sim_donkey.vida_restante:.1f}, Energía: {sim_donkey.energia:.1f}%")
+        # Procesar la estrella inicial (como hacía la versión anterior)
+        try:
+            initial_star_data = self.graph_manager.stars[current]
+            sim_donkey.procesar_estrella(current, initial_star_data)
+        except Exception:
+            pass
 
-        while sim_donkey.vida_restante > 0 and sim_donkey.energia > 0:
-            # Usar get_neighbors para obtener solo vecinos no bloqueados
-            neighbors = self.graph_manager.get_neighbors(current_star_label)
-            possible_next_steps = []
+        print(f"Iniciando cálculo 'Económico' (Dijkstra) desde '{start_star_label}'. Vida: {getattr(sim_donkey, 'vida_restante', 0):.1f}, Energía: {getattr(sim_donkey, 'energia', 0):.1f}")
 
-            for neighbor_label, distance in neighbors:
-                if neighbor_label in visited_stars:
+        def dijkstra(start):
+            dist = {start: 0.0}
+            prev = {}
+            pq = [(0.0, start)]
+            while pq:
+                d_u, u = heapq.heappop(pq)
+                if d_u > dist.get(u, float('inf')):
                     continue
+                for v, w in self.graph_manager.get_neighbors(u):
+                    nd = d_u + float(w)
+                    if nd < dist.get(v, float('inf')):
+                        dist[v] = nd
+                        prev[v] = u
+                        heapq.heappush(pq, (nd, v))
+            return dist, prev
 
-                # Simular el viaje a este vecino
-                temp_donkey = copy.deepcopy(sim_donkey)
-                temp_donkey.viajar(distance)
+        def reconstruct_path(prev, src, tgt):
+            if tgt not in prev and tgt != src:
+                return None
+            path = [tgt]
+            u = tgt
+            while u != src:
+                u = prev.get(u)
+                if u is None:
+                    return None
+                path.append(u)
+            path.reverse()
+            return path
 
-                # Si el burro sobrevive al viaje...
-                if temp_donkey.vida_restante > 0 and temp_donkey.energia > 0:
-                    # Simular acciones en la estrella de destino
-                    neighbor_star_data = self.graph_manager.stars[neighbor_label]
-                    temp_donkey.procesar_estrella(neighbor_label, neighbor_star_data) # Pasar el label de la estrella
+        while True:
+            # calcular distancias mínimas desde la estrella actual
+            dist, prev = dijkstra(current)
 
-                    # Calcular una "puntuación" para esta opción.
-                    # Queremos maximizar vida y energía, y minimizar distancia.
-                    # Un valor más alto es mejor.
-                    score = (temp_donkey.vida_restante * 0.6) + (temp_donkey.energia * 0.4) - (distance * 0.2)
-                    possible_next_steps.append((score, neighbor_label, distance, temp_donkey))
-
-            if not possible_next_steps:
-                print("No hay más movimientos posibles. Fin de la ruta.")
+            # candidatos: nodos no visitados alcanzables
+            candidates = [(d, node) for node, d in dist.items() if node not in visited]
+            if not candidates:
+                print("No hay estrellas no visitadas alcanzables. Fin de la ruta.")
                 break
 
-            # Elegir el vecino con la mejor puntuación
-            possible_next_steps.sort(key=lambda x: x[0], reverse=True)
-            best_score, best_neighbor, dist, final_donkey_state = possible_next_steps[0]
+            # elegir el más cercano (menor coste)
+            candidates.sort(key=lambda x: x[0])
+            next_node = None
+            for dcost, node in candidates:
+                path = reconstruct_path(prev, current, node)
+                if path is None:
+                    continue
+                # probar simular el viaje paso a paso con una copia temporal
+                temp = copy.deepcopy(sim_donkey)
+                can_reach = True
+                for i in range(1, len(path)):
+                    a = path[i-1]; b = path[i]
+                    edge_dist = self.graph_manager.get_distance(a, b)
+                    if edge_dist == float('inf'):
+                        # fallback: distancia euclídea/4 para no bloquear la simulación
+                        pa = self.graph_manager.get_star_pos(a)
+                        pb = self.graph_manager.get_star_pos(b)
+                        edge_dist = (((pa[0]-pb[0])**2 + (pa[1]-pb[1])**2) ** 0.5) / 4.0
+                    temp.viajar(edge_dist)
+                    if getattr(temp, 'vida_restante', 1) <= 0 or getattr(temp, 'energia', 1) <= 0:
+                        can_reach = False
+                        break
+                if can_reach:
+                    next_node = node
+                    next_path = path
+                    break
 
-            # Confirmar el movimiento
-            current_star_label = best_neighbor
-            visited_stars.add(current_star_label)
-            route.append(current_star_label)
-            sim_donkey = final_donkey_state
-            print(f"-> Viajando a '{current_star_label}' (Dist: {dist}). Estado: Vida {sim_donkey.vida_restante:.1f}, Energía {sim_donkey.energia:.1f}%")
+            if not next_node:
+                print("No se puede alcanzar ninguna estrella restante sin morir. Fin de la ruta.")
+                break
 
-        return route, len(route), sim_donkey.food_consumption_log, sim_donkey.research_log # Devolver los logs
+            # mover sim_donkey a lo largo de next_path, aplicando viajar y procesar_estrella
+            for i in range(1, len(next_path)):
+                a = next_path[i-1]; b = next_path[i]
+                edge_dist = self.graph_manager.get_distance(a, b)
+                if edge_dist == float('inf'):
+                    pa = self.graph_manager.get_star_pos(a)
+                    pb = self.graph_manager.get_star_pos(b)
+                    edge_dist = (((pa[0]-pb[0])**2 + (pa[1]-pb[1])**2) ** 0.5) / 4.0
+                sim_donkey.viajar(edge_dist)
+                if b not in route:
+                    route.append(b)
+                if getattr(sim_donkey, 'vida_restante', 1) <= 0 or getattr(sim_donkey, 'energia', 1) <= 0:
+                    print("El burro ha muerto durante el trayecto.")
+                    return route, len(route), sim_donkey.food_consumption_log, sim_donkey.research_log
+
+            # al llegar a next_node, procesar la estrella
+            try:
+                star_info = self.graph_manager.stars.get(next_node, {})
+                sim_donkey.procesar_estrella(next_node, star_info)
+            except Exception:
+                pass
+
+            visited.add(next_node)
+            current = next_node
+
+            # condición de parada si ya visitó todas las estrellas
+            if len(visited) >= len(self.graph_manager.stars):
+                break
+
+        return route, len(route), sim_donkey.food_consumption_log, sim_donkey.research_log
