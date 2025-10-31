@@ -57,6 +57,12 @@ class Donkey:
                 self.energia += kg_a_comer * energia_por_kg
                 if self.energia > 100: self.energia = 100
 
+                # Registrar el consumo de pasto si fue significativo
+                if kg_a_comer > 0.01:
+                    self.food_consumption_log.append({
+                        "star": star_label, "amount_kg": kg_a_comer
+                    })
+
         # 2. Investigar con el tiempo restante
         # Asumimos 10 unidades de tiempo para investigar.
         tiempo_para_investigar = 10
@@ -64,8 +70,25 @@ class Donkey:
         costo_energia_invest = estrella_data.get('costo_energia_invest', 1) # "Y" cantidad
 
         # Calcular cuántas veces se puede aplicar el costo de energía
-        num_investigaciones = tiempo_para_investigar / tiempo_por_unidad_invest
-        self.energia -= num_investigaciones * costo_energia_invest
+        unidades_investigadas = tiempo_para_investigar / tiempo_por_unidad_invest
+        self.energia -= unidades_investigadas * costo_energia_invest
+
+        # Aplicar efectos de la investigación sobre salud y vida
+        health_effect = estrella_data.get('health_effect', 0)
+        life_effect = estrella_data.get('life_effect', 0)
+
+        self.salud += health_effect
+        # Asegurar que la salud se mantenga en el rango válido (0-4)
+        self.salud = max(self.salud_map["moribundo"], min(self.salud_map["excelente"], self.salud))
+
+        self.vida_restante += life_effect
+
+        # Registrar la investigación si hubo algún efecto
+        if unidades_investigadas > 0.01 or health_effect != 0 or life_effect != 0:
+            self.research_log.append({
+                "star": star_label, "units_investigated": unidades_investigadas,
+                "health_change": health_effect, "life_change": life_effect
+            })
 
     def viajar(self, distancia):
         self.vida_restante -= distancia

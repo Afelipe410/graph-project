@@ -177,6 +177,8 @@ class GraphManager:
                 "tiempo_para_comer": s.get("timeToEat", 1),
                 "costo_energia_invest": s.get("amountOfEnergy", 1),
                 "hypergiant": s.get("hypergiant", False),
+                "health_effect": s.get("healthEffect", 0), # Nuevo: efecto en salud
+                "life_effect": s.get("lifeEffect", 0),     # Nuevo: efecto en vida
                 "constellation": const_name,
                 "overlap": False
             }

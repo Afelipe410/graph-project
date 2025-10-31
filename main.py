@@ -2,7 +2,7 @@ import sys
 import math
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget,
-    QFileDialog, QHBoxLayout, QGroupBox, QFormLayout, QLineEdit,
+    QFileDialog, QHBoxLayout, QGroupBox, QFormLayout,
     QComboBox, QLabel, QSpinBox, QMessageBox
 )
 from PyQt6.QtCore import QTimer, QUrl, Qt, QDir
@@ -118,6 +118,31 @@ class MainWindow(QMainWindow):
         path_blocking_group.setLayout(path_blocking_layout)
         left_layout.addWidget(path_blocking_group)
 
+        # --- Modificación de Estrellas ---
+        star_mod_group = QGroupBox("Modificar Efectos de Estrella")
+        star_mod_layout = QFormLayout()
+
+        self.mod_star_combo = QComboBox()
+        self.mod_star_combo.currentIndexChanged.connect(self.on_mod_star_selected)
+
+        self.mod_health_effect_input = QSpinBox()
+        self.mod_health_effect_input.setRange(-4, 4) # Rango de salud es 0-4
+        self.mod_life_effect_input = QSpinBox()
+        self.mod_life_effect_input.setRange(-500, 500) # Años luz
+        self.mod_life_effect_input.setSingleStep(10)
+
+        self.apply_star_mods_button = QPushButton("Aplicar Cambios a Estrella")
+        self.apply_star_mods_button.clicked.connect(self.apply_star_modifications)
+
+        star_mod_layout.addRow("Seleccionar Estrella:", self.mod_star_combo)
+        star_mod_layout.addRow("Efecto en Salud:", self.mod_health_effect_input)
+        star_mod_layout.addRow("Efecto en Vida (años luz):", self.mod_life_effect_input)
+        star_mod_layout.addRow(self.apply_star_mods_button)
+
+        star_mod_group.setLayout(star_mod_layout)
+        left_layout.addWidget(star_mod_group)
+
+
         # --- Estado del Burro ---
         status_group = QGroupBox("Estado Actual del Burro")
         status_layout = QFormLayout()
@@ -188,6 +213,7 @@ class MainWindow(QMainWindow):
             self.energy_input.setValue(donkey_data.get('energia', 100))
             self.grass_input.setValue(donkey_data.get('pasto', 100))
         self.update_path_blocking_ui()
+        self.update_star_modification_ui()
 
     def calculate_die_hard_route(self):
         start_star = self.start_star_combo.currentText()
@@ -272,7 +298,9 @@ class MainWindow(QMainWindow):
                 star_info = self.graph_manager.stars.get(self.animation_path[end_idx], {})
                 estrella_data = {
                     'tiempo_para_comer': star_info.get('tiempo_para_comer', 1),
-                    'costo_energia_invest': star_info.get('costo_energia_invest', 1)
+                    'costo_energia_invest': star_info.get('costo_energia_invest', 1),
+                    'health_effect': star_info.get('health_effect', 0),
+                    'life_effect': star_info.get('life_effect', 0)
                 }
                 self.current_donkey.procesar_estrella(self.animation_path[end_idx], estrella_data) # Pasar el label de la estrella
 
@@ -331,6 +359,40 @@ class MainWindow(QMainWindow):
         if all_stars:
             self.block_star1_combo.addItems(all_stars)
             self.block_star2_combo.addItems(all_stars)
+
+    def update_star_modification_ui(self):
+        """Actualiza el QComboBox para la modificación de estrellas."""
+        all_stars = self.graph_manager.get_all_star_labels()
+        self.mod_star_combo.clear()
+        if all_stars:
+            self.mod_star_combo.addItems(all_stars)
+            self.on_mod_star_selected() # Cargar datos de la primera estrella
+
+    def on_mod_star_selected(self):
+        """Carga los datos de la estrella seleccionada en los campos de modificación."""
+        star_label = self.mod_star_combo.currentText()
+        if not star_label:
+            return
+        star_data = self.graph_manager.stars.get(star_label)
+        if star_data:
+            self.mod_health_effect_input.setValue(star_data.get('health_effect', 0))
+            self.mod_life_effect_input.setValue(star_data.get('life_effect', 0))
+
+    def apply_star_modifications(self):
+        """Guarda los cambios de efectos en la estrella seleccionada."""
+        star_label = self.mod_star_combo.currentText()
+        if not star_label:
+            QMessageBox.warning(self, "Advertencia", "No hay ninguna estrella seleccionada para modificar.")
+            return
+
+        star_data = self.graph_manager.stars.get(star_label)
+        if star_data:
+            star_data['health_effect'] = self.mod_health_effect_input.value()
+            star_data['life_effect'] = self.mod_life_effect_input.value()
+            QMessageBox.information(self, "Éxito", f"Los efectos de la estrella '{star_label}' han sido actualizados.")
+        else:
+            QMessageBox.warning(self, "Error", f"No se encontraron datos para la estrella '{star_label}'.")
+
 
     def block_selected_path(self):
         """Bloquea el camino seleccionado entre dos estrellas."""
@@ -398,12 +460,16 @@ class MainWindow(QMainWindow):
             constellation = star_data.get('constellation', 'Desconocida')
             food_consumed = food_by_star.get(star_label, 0)
             research_units = research_by_star.get(star_label, 0)
+            health_change = sum(e['health_change'] for e in research_log if e['star'] == star_label)
+            life_change = sum(e['life_change'] for e in research_log if e['star'] == star_label)
 
             report_text += f"\nEstrella: {star_label}\n"
             report_text += f"  Constelación: {constellation}\n"
             report_text += f"  Consumo de Pasto: {food_consumed:.2f} kg\n"
             # Asumiendo que si se realizó investigación (research_units > 0), se invirtieron 10 unidades de tiempo.
             report_text += f"  Tiempo de Investigación: {10 if research_units > 0 else 0} unidades de tiempo\n"
+            report_text += f"  Efecto en Salud por Investigación: {health_change:+.0f}\n"
+            report_text += f"  Efecto en Vida por Investigación: {life_change:+.0f} años luz\n"
 
         QMessageBox.information(self, "Reporte de Ruta", report_text)
 
