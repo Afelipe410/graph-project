@@ -7,45 +7,92 @@ class RouteCalculator:
 
     def calculate_max_stars_route(self, start_star, donkey):
         """
-        Calcula la ruta que maximiza el número de estrellas visitadas antes de que el burro muera.
-        Utiliza un algoritmo voraz (greedy): en cada paso, viaja a la estrella vecina más cercana
-        que no ha sido visitada, siempre que el burro pueda sobrevivir al viaje.
+        Utiliza Dijkstra para encontrar la estrella no visitada más cercana en términos de coste de ruta
+        y simula el viaje para asegurar que el burro pueda sobrevivir.
         """
         sim_donkey = copy.deepcopy(donkey) # Usamos una copia para no alterar el original
         current_star_label = start_star
         visited_stars = {current_star_label}
         route = [current_star_label]
 
-        print(f"Iniciando cálculo 'Die Hard' desde '{start_star}'. Vida inicial del burro: {sim_donkey.vida_restante}")
+        print(f"Iniciando cálculo 'Die Hard' (Dijkstra) desde '{start_star}'. Vida inicial: {sim_donkey.vida_restante}")
+
+        def dijkstra(start_node):
+            dist = {node: float('inf') for node in self.graph_manager.stars}
+            dist[start_node] = 0
+            prev = {node: None for node in self.graph_manager.stars}
+            pq = [(0, start_node)]
+
+            while pq:
+                d, u = heapq.heappop(pq)
+
+                if d > dist[u]:
+                    continue
+
+                for v, weight in self.graph_manager.get_neighbors(u):
+                    if dist[u] + weight < dist[v]:
+                        dist[v] = dist[u] + weight
+                        prev[v] = u
+                        heapq.heappush(pq, (dist[v], v))
+            return dist, prev
+
+        def reconstruct_path(prev_nodes, target_node):
+            path = []
+            curr = target_node
+            while curr is not None:
+                path.append(curr)
+                curr = prev_nodes.get(curr)
+            path.reverse()
+            return path if path and path[0] == current_star_label else None
 
         while True:
-            # Usar get_neighbors para obtener solo vecinos no bloqueados
-            neighbors_with_distances = self.graph_manager.get_neighbors(current_star_label)
-            
-            # Encontrar vecinos no visitados desde la estrella actual
-            neighbors = [(n, d) for n, d in neighbors_with_distances if n not in visited_stars]
+            distances, predecessors = dijkstra(current_star_label)
 
-            # Ordenar vecinos por distancia (el más cercano primero) para el algoritmo voraz
-            neighbors.sort(key=lambda x: x[1])
+            # Encontrar candidatos: estrellas no visitadas y alcanzables
+            candidates = [(dist, node) for node, dist in distances.items() if node not in visited_stars and dist != float('inf')]
+            candidates.sort()
 
-            next_star_found = False
-            for next_star_label, distance in neighbors:
-                # ¿Puede el burro sobrevivir al viaje?
-                if sim_donkey.vida_restante > distance:
-                    sim_donkey.viajar(distance) # Viajar a la estrella
-                    current_star_label = next_star_label
-                    visited_stars.add(current_star_label)
-                    route.append(current_star_label)
-                    next_star_found = True
-                    print(f"Viajando a '{next_star_label}' (distancia: {distance}). Vida restante: {sim_donkey.vida_restante}")
-                    break # Salir del bucle de vecinos y empezar de nuevo desde la nueva estrella
-            
-            # Si no se encontró una siguiente estrella a la que se pueda viajar, terminar la ruta.
-            if not next_star_found:
-                print("No se pueden visitar más estrellas. Fin de la ruta.")
+            if not candidates:
+                print("No hay más estrellas alcanzables. Fin de la ruta.")
                 break
 
-        return route, len(route)
+            path_to_target = None
+            for _, target_node in candidates:
+                path = reconstruct_path(predecessors, target_node)
+                if not path or len(path) < 2:
+                    continue
+
+                # Simular el viaje con una copia para ver si es posible
+                temp_donkey = copy.deepcopy(sim_donkey)
+                can_survive = True
+                for i in range(len(path) - 1):
+                    trip_dist = self.graph_manager.get_distance(path[i], path[i+1])
+                    if temp_donkey.vida_restante <= trip_dist:
+                        can_survive = False
+                        break
+                    temp_donkey.viajar(trip_dist)
+                
+                if can_survive:
+                    path_to_target = path
+                    break # Encontramos el mejor candidato posible
+
+            if not path_to_target:
+                print("No se puede alcanzar ninguna estrella restante sin morir. Fin de la ruta.")
+                break
+
+            # Realizar el viaje a lo largo del camino encontrado
+            for i in range(len(path_to_target) - 1):
+                trip_dist = self.graph_manager.get_distance(path_to_target[i], path_to_target[i+1])
+                sim_donkey.viajar(trip_dist)
+                next_step_star = path_to_target[i+1]
+                if next_step_star not in visited_stars:
+                    visited_stars.add(next_step_star)
+                    route.append(next_step_star)
+                print(f"Viajando a '{next_step_star}' (distancia: {trip_dist}). Vida restante: {sim_donkey.vida_restante}")
+
+            current_star_label = path_to_target[-1]
+
+        return list(dict.fromkeys(route)), len(list(dict.fromkeys(route)))
 
     def calculate_economical_route(self, start_star_label, donkey):
         """
