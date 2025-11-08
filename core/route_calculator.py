@@ -96,13 +96,8 @@ class RouteCalculator:
 
     def calculate_economical_route(self, start_star_label, donkey):
         """
-        Ahora usa Dijkstra para encontrar caminos de coste mínimo desde la posición actual.
-        Estrategia:
-        - Repetidamente calcula distancias mínimas desde la estrella actual (Dijkstra).
-        - Selecciona la estrella no visitada con menor coste total (ruta más corta).
-        - Reconstruye el camino a esa estrella y simula el viaje paso a paso,
-          aplicando sim_donkey.viajar(...) y sim_donkey.procesar_estrella(...).
-        - Para mantener compatibilidad devuelve (route, len(route), food_log, research_log).
+        Usa Dijkstra para encontrar caminos de coste mínimo desde la posición actual.
+
         """
         sim_donkey = copy.deepcopy(donkey)
         current = start_star_label
@@ -113,7 +108,7 @@ class RouteCalculator:
         if current not in self.graph_manager.stars:
             return [], 0, sim_donkey.food_consumption_log, sim_donkey.research_log
 
-        # Procesar la estrella inicial (como hacía la versión anterior)
+        # Procesar la estrella inicial
         try:
             initial_star_data = self.graph_manager.stars[current]
             sim_donkey.procesar_estrella(current, initial_star_data)
