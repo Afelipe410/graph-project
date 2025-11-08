@@ -1,188 +1,98 @@
 import copy
-import collections
-import math
 import heapq
 
 class RouteCalculator:
     def __init__(self, graph_manager):
         self.graph_manager = graph_manager
 
-    def calculate_max_stars_route(self, start_star, donkey, step_callback=None):
+    def calculate_max_stars_route(self, start_star, donkey):
         """
-        Versión que genera la ruta (usando Ford-Fulkerson como antes) y luego
-        simula el movimiento exactamente igual que hace calculate_economical_route:
-        - simula los desplazamientos usando caminos mínimos (Dijkstra) entre pares
-          consecutivos de la ruta,
-        - llama a step_callback después de cada llegada para que la UI se actualice,
-        - actualiza vida/energía del sim_donkey usando viajar/procesar_estrella.
-        Devuelve (route, visited_count, food_log, research_log, sim_donkey).
+        Utiliza Dijkstra para encontrar la estrella no visitada más cercana en términos de coste de ruta
+        y simula el viaje para asegurar que el burro pueda sobrevivir.
         """
-        # --- Construir la ruta objetivo usando el mismo Ford-Fulkerson previo ---
-        sim_donkey = copy.deepcopy(donkey)
-        if start_star not in self.graph_manager.stars:
-            return [], 0, [], [], sim_donkey
+        sim_donkey = copy.deepcopy(donkey) # Usamos una copia para no alterar el original
+        current_star_label = start_star
+        visited_stars = {current_star_label}
+        route = [current_star_label]
 
-        labels = list(self.graph_manager.stars.keys())
-        def in_node(u): return f"{u}::in"
-        def out_node(u): return f"{u}::out"
-        source = out_node(start_star)
-        sink = "__SINK__"
+        print(f"Iniciando cálculo 'Die Hard' (Dijkstra) desde '{start_star}'. Vida inicial: {sim_donkey.vida_restante}")
 
-        cap = collections.defaultdict(lambda: collections.defaultdict(int))
-        for u in labels:
-            cap[in_node(u)][out_node(u)] = (max(1, len(labels)) if u == start_star else 1)
-        for a, b, _ in self.graph_manager.connections:
-            cap[out_node(a)][in_node(b)] = 1
-            cap[out_node(b)][in_node(a)] = 1
-        for u in labels:
-            if u != start_star:
-                cap[out_node(u)][sink] = 1
+        def dijkstra(start_node):
+            dist = {node: float('inf') for node in self.graph_manager.stars}
+            dist[start_node] = 0
+            prev = {node: None for node in self.graph_manager.stars}
+            pq = [(0, start_node)]
 
-        # BFS para Edmonds-Karp
-        def bfs_ff(res):
-            parent = {}
-            q = collections.deque([source])
-            parent[source] = None
-            while q:
-                u = q.popleft()
-                for v in res[u]:
-                    if v not in parent and res[u][v] > 0:
-                        parent[v] = u
-                        if v == sink:
-                            path = []
-                            cur = sink
-                            while cur is not None:
-                                path.append(cur)
-                                cur = parent[cur]
-                            return list(reversed(path))
-                        q.append(v)
-            return None
-
-        residual = collections.defaultdict(lambda: collections.defaultdict(int))
-        for u in list(cap.keys()):
-            for v, c in cap[u].items():
-                residual[u][v] += c
-                _ = residual[v][u]
-
-        flows = collections.defaultdict(lambda: collections.defaultdict(int))
-        while True:
-            path = bfs_ff(residual)
-            if not path:
-                break
-            bottleneck = min(residual[path[i]][path[i+1]] for i in range(len(path)-1))
-            for i in range(len(path)-1):
-                u, v = path[i], path[i+1]
-                residual[u][v] -= bottleneck
-                residual[v][u] += bottleneck
-                flows[u][v] += bottleneck
-
-        # extraer paths unitarios
-        def extract_one():
-            stack = [source]; parent = {source: None}
-            while stack:
-                u = stack.pop()
-                if u == sink:
-                    p = []; cur = sink
-                    while cur is not None:
-                        p.append(cur); cur = parent[cur]
-                    return list(reversed(p))
-                for v in list(flows[u].keys()):
-                    if flows[u][v] > 0 and v not in parent:
-                        parent[v] = u; stack.append(v)
-            return None
-
-        used = []
-        while True:
-            p = extract_one()
-            if not p: break
-            for i in range(len(p)-1):
-                u, v = p[i], p[i+1]; flows[u][v] -= 1
-            used.append(p)
-
-        visit_sequences = []
-        for p in used:
-            seq = []
-            for node in p:
-                if node in (source, sink): continue
-                if node.endswith("::in") or node.endswith("::out"):
-                    lbl = node.split("::")[0]
-                    if lbl != start_star and (not seq or seq[-1] != lbl):
-                        seq.append(lbl)
-            if seq: visit_sequences.append(seq)
-
-        route = [start_star]
-        for seq in visit_sequences:
-            for node in seq:
-                if node not in route:
-                    route.append(node)
-
-        # --- Simulación del movimiento EXACTA a la de calculate_economical_route ---
-        def dijkstra(start):
-            dist = {start: 0.0}; prev = {}; pq = [(0.0, start)]
             while pq:
-                d_u, u = heapq.heappop(pq)
-                if d_u > dist.get(u, float('inf')): continue
-                for v, w in self.graph_manager.get_neighbors(u):
-                    nd = d_u + float(w)
-                    if nd < dist.get(v, float('inf')):
-                        dist[v] = nd; prev[v] = u; heapq.heappush(pq, (nd, v))
+                d, u = heapq.heappop(pq)
+
+                if d > dist[u]:
+                    continue
+
+                for v, weight in self.graph_manager.get_neighbors(u):
+                    if dist[u] + weight < dist[v]:
+                        dist[v] = dist[u] + weight
+                        prev[v] = u
+                        heapq.heappush(pq, (dist[v], v))
             return dist, prev
 
-        def reconstruct(prev, src, tgt):
-            if tgt not in prev and tgt != src: return None
-            path = [tgt]; u = tgt
-            while u != src:
-                u = prev.get(u)
-                if u is None: return None
-                path.append(u)
-            path.reverse(); return path
+        def reconstruct_path(prev_nodes, target_node):
+            path = []
+            curr = target_node
+            while curr is not None:
+                path.append(curr)
+                curr = prev_nodes.get(curr)
+            path.reverse()
+            return path if path and path[0] == current_star_label else None
 
-        # proceso inicial
-        try:
-            sim_donkey.procesar_estrella(start_star, self.graph_manager.stars.get(start_star, {}))
-        except Exception:
-            pass
-        visited = {start_star}
+        while True:
+            distances, predecessors = dijkstra(current_star_label)
 
-        food_log = []
-        research_log = []
+            # Encontrar candidatos: estrellas no visitadas y alcanzables
+            candidates = [(dist, node) for node, dist in distances.items() if node not in visited_stars and dist != float('inf')]
+            candidates.sort()
 
-        for i in range(1, len(route)):
-            a = route[i-1]; b = route[i]
-            dist_map, prev = dijkstra(a)
-            path = reconstruct(prev, a, b)
-            if path is None:
-                path = [a, b]
-            for j in range(1, len(path)):
-                u = path[j-1]; v = path[j]
-                edge_dist = self.graph_manager.get_distance(u, v)
-                if edge_dist == float('inf'):
-                    pa = self.graph_manager.get_star_pos(u); pb = self.graph_manager.get_star_pos(v)
-                    edge_dist = math.hypot(pa[0]-pb[0], pa[1]-pb[1]) / 4.0
-                try:
-                    sim_donkey.viajar(edge_dist)
-                except Exception:
-                    pass
-                try:
-                    sim_donkey.procesar_estrella(v, self.graph_manager.stars.get(v, {}))
-                except Exception:
-                    pass
-                visited.add(v)
-                if step_callback:
-                    try:
-                        step_callback(v, sim_donkey)
-                    except Exception:
-                        pass
-                if getattr(sim_donkey, 'vida_restante', 1) <= 0 or getattr(sim_donkey, 'energia', 1) <= 0:
-                    break
-            if getattr(sim_donkey, 'vida_restante', 1) <= 0 or getattr(sim_donkey, 'energia', 1) <= 0:
+            if not candidates:
+                print("No hay más estrellas alcanzables. Fin de la ruta.")
                 break
 
-        food_log = getattr(sim_donkey, 'food_consumption_log', []) or food_log
-        research_log = getattr(sim_donkey, 'research_log', []) or research_log
+            path_to_target = None
+            for _, target_node in candidates:
+                path = reconstruct_path(predecessors, target_node)
+                if not path or len(path) < 2:
+                    continue
 
-        # devolver mismo formato que la ruta económica (incluye sim_donkey final)
-        return route, len(visited), food_log, research_log, sim_donkey
+                # Simular el viaje con una copia para ver si es posible
+                temp_donkey = copy.deepcopy(sim_donkey)
+                can_survive = True
+                for i in range(len(path) - 1):
+                    trip_dist = self.graph_manager.get_distance(path[i], path[i+1])
+                    if temp_donkey.vida_restante <= trip_dist:
+                        can_survive = False
+                        break
+                    temp_donkey.viajar(trip_dist)
+                
+                if can_survive:
+                    path_to_target = path
+                    break # Encontramos el mejor candidato posible
+
+            if not path_to_target:
+                print("No se puede alcanzar ninguna estrella restante sin morir. Fin de la ruta.")
+                break
+
+            # Realizar el viaje a lo largo del camino encontrado
+            for i in range(len(path_to_target) - 1):
+                trip_dist = self.graph_manager.get_distance(path_to_target[i], path_to_target[i+1])
+                sim_donkey.viajar(trip_dist)
+                next_step_star = path_to_target[i+1]
+                if next_step_star not in visited_stars:
+                    visited_stars.add(next_step_star)
+                    route.append(next_step_star)
+                print(f"Viajando a '{next_step_star}' (distancia: {trip_dist}). Vida restante: {sim_donkey.vida_restante}")
+
+            current_star_label = path_to_target[-1]
+
+        return list(dict.fromkeys(route)), len(list(dict.fromkeys(route)))
 
     def calculate_economical_route(self, start_star_label, donkey):
         """

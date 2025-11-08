@@ -6,7 +6,6 @@ from PyQt6.QtWidgets import (
     QComboBox, QLabel, QSpinBox, QMessageBox
 )
 from PyQt6.QtCore import QTimer, QUrl, Qt, QDir
-from PyQt6.QtTest import QTest
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from core.graph_manager import GraphManager
 from ui.graph_widget import GraphWidget
@@ -30,9 +29,6 @@ class MainWindow(QMainWindow):
         self.animation_step_index = 0
         self.current_donkey = None
         self.current_route_report_data = None # Para guardar datos del reporte
-
-        # tiempo de espera (ms) entre pasos de la simulación para bajar la velocidad
-        self.step_delay_ms = 200
 
         # --- Layout Principal ---
         main_widget = QWidget()
@@ -224,18 +220,9 @@ class MainWindow(QMainWindow):
         if not start_star or not self.current_donkey:
             QMessageBox.warning(self, "Advertencia", "Selecciona constelación, estrella y crea un burro.")
             return
-        # calculate_max_stars_route devuelve: (route, visited_count, food_log, research_log, sim_donkey)
-        route, stars_visited, food_log, research_log, sim_donkey = self.route_calculator.calculate_max_stars_route(
-            start_star, self.current_donkey, step_callback=self._on_die_hard_step
-        )
-        # sincronizar estado final del burro en la UI y en self.current_donkey
-        try:
-            self.current_donkey = sim_donkey
-        except Exception:
-            pass
-        # resaltar ruta y mostrar resumen
+        route, stars_visited = self.route_calculator.calculate_max_stars_route(start_star, self.current_donkey)
         self.graph_widget.set_highlighted_route(route)
-        QMessageBox.information(self, "Ruta calculada", f"Estrellas visitadas: {stars_visited}\nRuta: {' -> '.join(route)}")
+        QMessageBox.information(self, "Ruta de Resistencia", f"Visitadas {stars_visited} estrellas:\n{' -> '.join(route)}")
 
     def calculate_economical_route(self):
         start_star = self.start_star_combo.currentText()
@@ -485,57 +472,6 @@ class MainWindow(QMainWindow):
             report_text += f"  Efecto en Vida por Investigación: {life_change:+.0f} años luz\n"
 
         QMessageBox.information(self, "Reporte de Ruta", report_text)
-
-    def _on_die_hard_step(self, star_label, sim_donkey):
-        """Callback llamado desde calculate_max_stars_route en cada paso.
-        Actualiza posición visual del burro y el panel 'Estado Actual del burro'.
-        """
-        # actualizar posición del sprite
-        try:
-            pos = self.graph_manager.get_star_pos(star_label)
-            if pos:
-                self.graph_widget.donkey_pos = pos
-                self.graph_widget.update()
-        except Exception:
-            pass
-
-        # actualizar labels del estado actual (si existen)
-        try:
-            vida = getattr(sim_donkey, 'vida_restante', None)
-            energia = getattr(sim_donkey, 'energia', None)
-            edad = getattr(sim_donkey, 'edad', None)
-            pasto = getattr(sim_donkey, 'pasto', None)
-            if hasattr(self, 'vida_label') and vida is not None:
-                try: self.vida_label.setText(f"Vida: {vida:.1f}")
-                except Exception: pass
-            if hasattr(self, 'energia_label') and energia is not None:
-                try: self.energia_label.setText(f"Energía: {energia:.1f}")
-                except Exception: pass
-            if hasattr(self, 'edad_label') and edad is not None:
-                try: self.edad_label.setText(f"Edad: {edad}")
-                except Exception: pass
-            if hasattr(self, 'pasto_label') and pasto is not None:
-                try: self.pasto_label.setText(f"Pasto: {pasto}")
-                except Exception: pass
-        except Exception:
-            pass
-
-        # forzar procesamiento de eventos para que la UI se refresque durante la simulación
-        try:
-            QApplication.processEvents()
-        except Exception:
-            pass
-
-        # Espera corta entre pasos para reducir la velocidad visual sin bloquear la UI
-        # Ajusta self.step_delay_ms (en ms) para más/menos velocidad.
-        try:
-            QTest.qWait(self.step_delay_ms)
-        except Exception:
-            # fallback: procesar eventos y no esperar si QTest falla
-            try:
-                QApplication.processEvents()
-            except Exception:
-                pass
 
 def main():
     app = QApplication(sys.argv)
